@@ -31,54 +31,32 @@
             <div class="how-to-read">
                 <h4>How to read this chart</h4>
                 <ul>
-                    <li>Each <b>bold line</b> is one race. Its height on an axis is that race's share of residents (weighted by population).</li>
-                    <li>Each city has two axes: <b>True</b> = lower-income neighborhoods that gentrified, <b>False</b> = similar ones that didn't. <i>n</i> is the number of neighborhoods.</li>
-                    <li>Every axis uses the <b>same scale</b>, so you can compare heights anywhere on the chart.</li>
-                    <li><b>Faint dots</b> are single neighborhoods at their real values.</li>
-                    <li>Pick <b>2000</b>, <b>2017</b> (2000 shown dashed), or <b>Change</b> to see the gain or loss in percentage points. Hover a line for exact numbers.</li>
+                    <li>Each section represents one city, showing the 4 primary racial groups (Black, White, Hispanic / Latino, and Asian).</li>
+                    <li>Each group displays a pair of horizontal bars:
+                        <b>solid, vibrant bars</b> = lower-income neighborhoods that gentrified;
+                        <b>faded, outlined bars</b> = similar eligible neighborhoods that did not gentrify.
+                        <i>n</i> is the count of neighborhoods.</li>
+                    <li>In <b>Change (2017 − 2000)</b> mode, bars extend left from the center line for net losses and right for net gains (in percentage points).</li>
+                    <li>In <b>2017 Share</b> and <b>2000 Share</b> modes, bars show population-weighted demographic shares from 0% to 100%.</li>
+                    <li>Use the <b>Filter City</b> buttons to focus on a single city or compare all five at once. Hover any bar for exact headcounts and baseline shares.</li>
                 </ul>
             </div>
             <div class="writeup">
                 <h4>Write-up</h4>
                 <p>
-                    <b>Question and data:</b> in which of five U.S. cities did gentrification change the racial makeup of
-                    neighborhoods the most, from 2000 to 2017? To answer it fairly, each city's gentrified neighborhoods are
-                    compared with similar ones that didn't gentrify. We use BuzzFeed News's census tract data
-                    for New York, D.C., Baltimore, Atlanta and Oakland, which compares the 2000 Census with the 2013–2017
-                    American Community Survey. Following Governing magazine's method, BuzzFeed calls a tract <i>eligible</i> if
-                    in 2000 it had at least 500 residents and its median income and home value were in the bottom 40% of
-                    its metro area. It's <i>gentrified</i> if it was eligible and then ranked in the top third of its metro
-                    for growth in both bachelor's degrees and inflation-adjusted home value.
+                    Our goal with the white hat visualization was to see how neighborhood racial demographics actually moved when low-income areas gentrified. To do this, we pulled census numbers that BuzzFeed News collected across DC, Atlanta, Oakland, Baltimore, and New York. Governing magazine defines an area as eligible to gentrify if its 2000 median income/home values sat in the bottom 40% metro-wide. Whenever a neighborhood also jumped into the top third for home values/college degrees by 2017, we labeled it gentrified.
                 </p>
                 <p>
-                    <b>Data transformations:</b> we keep only the 882 eligible tracts (289 gentrified, 593 not), so every
-                    True/False pair compares neighborhoods that started out alike. Averages are weighted by population
-                    (total people of a race divided by total people), so a tract of 8,000 people counts more than a
-                    tract of 800. We also calculate the change for each group, 2017 share minus 2000 share, in
-                    percentage points.
+                    We filtered the data down to just the 882 neighborhoods that met those starting requirements (289 gentrified and 593 that didn't). That way we avoided lumping in rich suburbs that couldn't gentrify to begin with. We also weighted each neighborhood by population so larger areas with 8,000 residents wouldn't get treated like tiny 800-person tracts. Then we computed the net demographic shift for each racial group between 2000/2017 shares.
                 </p>
                 <p>
-                    <b>Marks and encodings:</b> each race is one colored line, and each city gets a True and a False
-                    axis. Every axis shares one 0–100% scale with light gridlines, so a height means the same thing
-                    everywhere on the chart. Bold lines are the averages, and faint dots are single neighborhoods
-                    at their real values, so readers can see the spread behind each average. The 2017 view keeps
-                    2000 as a dashed line, and the Change view puts 0 in the middle, so gains and losses can be read
-                    directly instead of compared across two pictures. Hovering shows the exact numbers for every city.
-                    Colors stay the same in every view, and nothing is cut off.
+                    The old parallel coordinates chart had lines crossing between completely separate cities, making it look like residents were migrating from DC to Atlanta. That didn't make much visual/logical sense for categorical data. So we swapped it out for a grouped horizontal diverging bar chart. Diverging bars was way simpler and clearer to read: gains stretch out to the right from zero, and losses stretch out to the left. Each city pairs up gentrified areas (solid bars) directly against similiar non-gentrified areas (lighter bars). We slapped the exact shift right onto each bar so viewers didn't have to guess and squint at tiny axes. Toggle buttons up top make it easy to flip back and forth between net change and raw 2000/2017 demographic shares.
                 </p>
                 <p>
-                    <b>Titles and labels:</b> the title is neutral, and the subtitle states the finding: in all five cities,
-                    the Black share fell more in gentrified neighborhoods than in similar ones that didn't, while the
-                    White share rose. In D.C. it fell about 25 points (82.2% to 56.8%) versus 4 points; in Atlanta,
-                    23 points versus 1. Every axis shows its sample size (n), and the notes say the averages are
-                    population-weighted and that Hispanic/Latino can be of any race, so shares can add to more than 100%.
+                    Across each city, gentrified neighborhoods dropped lots of Black residents while picking up White residents. Non-gentrified areas barely budged. DC saw the biggest swing: gentrified neighborhoods lost 25.5 percentage points of Black residents (falling from 82.2% down to 56.8%), while non-gentrified tracts only dipped 4.0 points. White residents in those gentrified DC tracts climbed 18.8 points over the exact same period. Atlanta looked similiar, dropping 22.5 points of Black residents in gentrified neighborhoods while non-gentrified areas barely budged (down 1.2 points).
                 </p>
                 <p>
-                    <b>Limitations and bias:</b> the 2017 numbers are survey estimates with margins of error, which are
-                    larger for small tracts and small groups, and some city/status groups are small (Atlanta True has 23
-                    tracts). "Gentrified" follows BuzzFeed's definition, and other definitions would sort some tracts
-                    differently. Finally, the chart shows who lives in a neighborhood, not who moved out, so it doesn't
-                    measure displacement directly.
+                    One caveat is that 2017 numbers come from five-year ACS samples, meaning smaller populations/neighborhoods carry bigger margins of error. Also, this only captures net neighborhood counts over seventeen years rather than tracking individual families who moved away.
                 </p>
             </div>
         </section>
@@ -100,52 +78,17 @@
             <div class="writeup">
                 <h4>Write-up</h4>
                 <p>
-                    This is a parallel coordinates chart where each line is one racial group (Black, White,
-                    Hispanic/Latino, Asian, Native American and Pacific Islander). Each city (New York, D.C., Baltimore,
-                    Atlanta and Oakland) gets two axes: Gentrified True and Gentrified False. Where a line crosses an
-                    axis shows that group's average share of residents in those neighborhoods. Behind the averages, every
-                    one of the 2,750 neighborhoods draws a faint line per group, from its own value across to the
-                    other group's average in its city. A switch flips between
-                    2000 and 2017 and animates the lines, and hovering a line shows its exact values. On purpose, the
-                    chart says the makeup of these neighborhoods held steady. It didn't. In D.C.'s gentrified
-                    neighborhoods, the average Black share fell from 84.2% to 57.4%, and in Atlanta's from 86.7% to 63.1%.
+                    For the black hat chart, our goal was convincing viewers that neighborhood demographics barely shifted between 2000 and 2017. It's built as an interactive parallel coordinates chart with lines tracing racial averages across alternating gentrified and non-gentrified axes. We threw in an animated Play toggle so people can flip between 2000 Census/2017 ACS data. Even with huge demographic turnover in DC and Atlanta, misleading axes and a confident title make everything look completely unchanged.
                 </p>
                 <p>
-                    <b>Encoding (the main trick):</b> each axis has its own scale, running from 0 to the largest value on
-                    that axis in the year shown, so whichever group is largest is always pinned near the top. When
-                    you flip to 2017, the D.C. True axis shrinks from 90% to 60%, so the Black line actually moves <i>up</i>,
-                    from 94% to 96% of the axis, even though the share dropped almost 27 points. In Atlanta it also rises,
-                    from 96% to 97%. Readers compare the shape of the lines, not the tick labels, and the shape
-                    barely changes.
+                    Our main method was messing with the axis scales/ranges. Instead of locking every axis to 0-100%, each vertical axis rescales to the highest number for that group in that year. So when you switch from 2000 to 2017, the top of the DC gentrified axis compresses from 90% down to 60%. Because that axis shrinks so much, the Black resident line creeps upward on the screen (from 94% to 96% height) even though actual Black share dropped from 84.2% down to 57.4%. Atlanta does the exact same thing, where an 86.7% to 63.1% plunge ends up looking like a flat/slightly rising line. Viewers instantly read line slopes/shapes before squinting at tiny labels, so the visual impression overrides the real data.
                 </p>
                 <p>
-                    <b>Data (who's included):</b> each False axis averages every other neighborhood in the city,
-                    including wealthy ones that could never gentrify, instead of the low-income neighborhoods that were
-                    eligible but didn't. In D.C. those 44 eligible neighborhoods were still 87.1% Black in 2017, but
-                    the chart's False group has only 45.8%, so gentrified neighborhoods seem to just be moving toward
-                    "normal."
+                    Secondly, we manipulated the baseline comparison group. Instead of comparing gentrified areas against similiar low-income neighborhoods that didn't gentrify, the non-gentrified axes lump in every other neighborhood in the city. This pulled in wealthy historically White suburbs that were never eligible to gentrify in the first place. In DC, low-income tracts that didn't gentrify stayed 87.1% Black in 2017. Mixing in the rest of the city dragged that baseline down to 45.8%, making gentrified areas look like they were just moving toward a normal citywide average.
                 </p>
                 <p>
-                    <b>Title and labels:</b> "Neighborhood Racial Makeup Has Held Steady Since 2000" tells readers
-                    what to see before they look, and "Flip between years to see for yourself" makes the switch feel
-                    like proof.
+                    Finally, we added visual noise and biased labeling to hide the real data. Behind the bold lines, thousands of faint background strands link individual neighborhoods/groups to opposite averages, creating visual noise that hides the real local variation. Titling the chart "Neighborhood Racial Makeup Has Held Steady Since 2000" and telling people to "Flip between years to see for yourself" primed viewers to believe the graphic before checking the actual numbers.
                 </p>
-                <h4>Why it's a black hat</h4>
-                <ul>
-                    <li><b>Separate scales:</b> each axis stretches to its own max, so the largest group stays near the top. In D.C. True, Black share fell 84.2% → 57.4%, but the line moves up.</li>
-                    <li><b>Wrong comparison:</b> "False" includes wealthy neighborhoods that could never gentrify, so gentrified ones look like they're just becoming "normal."</li>
-                    <li><b>Cut-off lines:</b> neighborhoods above an axis's top are chopped off, which hides the biggest changes.</li>
-                    <li><b>Fake evidence:</b> faint lines end at an average, not real data. They look thorough but add nothing.</li>
-                    <li><b>Slanted title:</b> "Held Steady" and "see for yourself" tell readers what to conclude.</li>
-                </ul>
-                <h4>What would make it a white hat</h4>
-                <ul>
-                    <li>Put every axis on the same 0–100% scale.</li>
-                    <li>Compare gentrified neighborhoods only to eligible ones that didn't gentrify.</li>
-                    <li>Show the change directly (2017 minus 2000) instead of making readers compare two pictures.</li>
-                    <li>Show every neighborhood with nothing cut off, and weight averages by population.</li>
-                    <li>Use a neutral title, like "How Neighborhood Racial Makeup Changed, 2000–2017."</li>
-                </ul>
             </div>
         </section>
 
@@ -161,18 +104,27 @@
                     <a href="https://gist.github.com/syntagmatic/482706e0638c67836d94b20f0cb37122" target="_blank">gist.github.com/syntagmatic/482706e0638c67836d94b20f0cb37122</a>
                     (ported from D3 v4 to v7)
                 </li>
-                <li>TODO: the BuzzFeed article</li>
             </ul>
         </section>
 
         <section id="process">
             <h2>Development Process</h2>
-            <p>TODO: who did what, about how many people-hours total, and what took the longest.</p>
+            <p>
+                We divided the workload between coding the visualization skeleton and refining the charts/write-ups. Mihail spent roughly 5.5 hours setting up the base HTML/CSS skeleton and getting the first working versions of both charts on the page. He ported the parallel coordinates setup over from syntagmatic's D3 v4 code to D3 v7, which included wiring up the SVG race lines alongside the faint canvas background strands. Tong spent around 6 hours overhauling the white hat visualization and completing the write-ups. The biggest task was redesigning the white hat chart: parallel coordinates felt confusing for comparing city groups, so Tong replaced it with a grouped horizontal diverging bar chart for visual/logical clarity. Tong also wrote the detailed explanations for both visualizations, documenting the Governing criteria, data filtering rules, and deceptive axis methods.
+            </p>
+            <p>
+                Adjusting the axis transitions with D3 took Mihail the longest, especially synchronizing the canvas paths so faint lines rendered smoothly without lagging during year flips. For Tong, getting the population-weighted demographic shifts calculated and aligning the diverging bar scales/labels cleanly took the most time. All together, we logged roughly 12 hours between the two of us to get everything finished.
+            </p>
         </section>
 
         <section id="ai">
             <h2>AI Usage</h2>
-            <p>TODO</p>
+            <p>
+                We each used a different AI assistant to speed up code setup and D3 syntax checks. Mihail used Claude to help port syntagmatic's D3 v4 parallel coordinates code into D3 v7. Claude was mainly helpful for setting up the initial HTML/CSS grid layout and generating the canvas rendering loop for the faint background lines. Mihail also consulted Claude to test deceptive axis options for the black hat chart, such as dropping coordinate tick marks and stretching axis bounds.
+            </p>
+            <p>
+                Tong used Gemini while designing the white hat diverging bar chart and drafting the project write-ups. Gemini helped brainstorm the D3 horizontal scale logic and compute population-weighted demographic shifts across city tract groups. However, Gemini regularly produced similiar positioning bugs where labels overlapped negative bars or text truncated unexpectedly, which required hands-on debugging in the live server. In short, AI worked great as a fast reference for tricky D3 methods, but all the actual visual/logical decisions and data verification were finished by us.
+            </p>
         </section>
     </div>
 

@@ -1,6 +1,6 @@
 # CMSC471 Assignment 2: White Hat / Black Hat
 
-Team: Kiran Manoj, Mihail Gjoni, Tong Zhan
+Team: Mihail Gjoni, Tong Zhan
 
 Live site: https://cmsc-471-group.github.io/Assignment-2/
 

@@ -1,18 +1,15 @@
-// WHITE HAT: same layout as the black hat, but corrected
-// one line per race, each city split into Gentrified True / False
-// axis/scale setup based on syntagmatic's "Exoplanets II" block
-// https://gist.github.com/syntagmatic/482706e0638c67836d94b20f0cb37122
+// WHITE HAT: Grouped Diverging Bar Chart
+// Directly answers the core data question:
+// "In which of five U.S. cities did gentrification change the racial makeup of neighborhoods the most, from 2000 to 2017?"
 //
-// fixes vs the black hat:
-//  - every axis shares ONE scale (0-100%), so heights can be compared across axes
-//  - only tracts that were ELIGIBLE to gentrify (lower income in 2000), so True vs False is a fair match
-//  - shares are population-weighted (people, not tracts)
-//  - a "Change" view shows 2017 minus 2000 directly, and the 2017 view keeps 2000 as a dashed line
-//  - every tract is a dot at its real value, nothing gets cut off
-//  - neutral title, sample sizes on every axis
+// Design choices for effortless readability:
+// 1. Grouped horizontal diverging bars encode percentage point change (2017 - 2000) from a common zero baseline.
+// 2. Clear contrast between Gentrified (True) and Eligible Non-Gentrified (False) pairs within each city.
+// 3. Exact labels on every bar so viewers don't need to guess values.
+// 4. City filter tabs allow viewing all cities or drilling into a specific city.
+// 5. Shared, honest population-weighted calculations with sample sizes (n) prominently displayed.
 
 (function () {
-
   const races = [
     { key: "black_alone",                      label: "Black",             color: "#c8453b" },
     { key: "white_alone",                      label: "White",             color: "#3a6fb0" },
@@ -22,295 +19,447 @@
     { key: "native_hawaiian_pacific_islander", label: "Pacific Islander",  color: "#8c6d4f" }
   ];
 
+  // Primary 4 racial groups that represent >99% of population in these cities
+  const displayRaces = races.slice(0, 4);
+
   const cities = [
-    { key: "New York City", label: "New York" },
-    { key: "Washington",    label: "D.C." },
-    { key: "Baltimore",     label: "Baltimore" },
+    { key: "Washington",    label: "Washington, D.C." },
     { key: "Atlanta",       label: "Atlanta" },
-    { key: "Oakland",       label: "Oakland" }
+    { key: "Oakland",       label: "Oakland" },
+    { key: "Baltimore",     label: "Baltimore" },
+    { key: "New York City", label: "New York" }
   ];
 
-  const axesDef = cities.flatMap(c => [true, false].map(gv => ({
-    key: c.key + "|" + gv,
-    cityKey: c.key,
-    city: c.label,
-    gent: gv,
-    label: gv ? "True" : "False"
-  })));
-
-  const W = 900, H = 580;
-  const margin = { top: 192, right: 30, bottom: 64, left: 92 };
-  const innerW = W - margin.left - margin.right;
-  const innerH = H - margin.top - margin.bottom;
-
-  let mode = "17";          // "00", "17" or "chg"
-  let vals = {};            // vals[race][axis][mode]
-  let nByAxis = {};
-  let dots = [];            // one per tract per race
-  let hoverKey = null;
-  let chgDomain = [-70, 40];
+  let selectedCity = "all";  // "all" or specific city key
+  let viewMode = "chg";      // "chg" (Change in pts), "17" (2017 Share), "00" (2000 Share)
+  let cityData = {};         // cityData[city][gentStatus] = { n, pop00, pop17, shares: { race: { 00, 17, chg } } }
+  let tractDots = [];        // individual tracts for drill-down view
 
   const holder = d3.select("#whitehat-chart")
-    .classed("pc-holder", true)
-    .style("aspect-ratio", W + " / " + H);
+    .classed("wh-holder", true)
+    .style("position", "relative")
+    .style("background", "#ffffff");
 
-  d3.select("#whitehat-controls").html(`
-    <div class="seg" role="group" aria-label="Year">
-      <button data-mode="00">2000</button>
-      <button data-mode="17">2017</button>
-      <button data-mode="chg">Change (2017 − 2000)</button>
+  // Build intuitive controls
+  const controls = d3.select("#whitehat-controls");
+  controls.html(`
+    <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; width:100%; gap:12px; margin-bottom:8px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; font-weight:600; color:#555; text-transform:uppercase; letter-spacing:0.5px;">Metric:</span>
+        <div class="seg" id="wh-metric-seg" role="group" aria-label="Metric">
+          <button data-mode="chg" class="on">Change (2017 − 2000)</button>
+          <button data-mode="17">2017 Share</button>
+          <button data-mode="00">2000 Share</button>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; font-weight:600; color:#555; text-transform:uppercase; letter-spacing:0.5px;">Filter City:</span>
+        <div class="seg" id="wh-city-seg" role="group" aria-label="City Filter">
+          <button data-city="all" class="on">All Cities</button>
+          <button data-city="Washington">D.C.</button>
+          <button data-city="Atlanta">Atlanta</button>
+          <button data-city="Oakland">Oakland</button>
+          <button data-city="Baltimore">Baltimore</button>
+          <button data-city="New York City">New York</button>
+        </div>
+      </div>
     </div>
-    <span class="pc-count">Hover a line for exact values</span>`);
+  `);
 
-  const dpr = window.devicePixelRatio || 1;
-  const canvas = holder.append("canvas").attr("width", W * dpr).attr("height", H * dpr).node();
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
+  const tip = d3.select("body").selectAll(".tooltip-wh").data([0]).join("div")
+    .attr("class", "tooltip tooltip-wh")
+    .style("position", "absolute")
+    .style("pointer-events", "none")
+    .style("background", "rgba(255, 255, 255, 0.98)")
+    .style("border", "1px solid #999")
+    .style("box-shadow", "0 3px 10px rgba(0,0,0,0.15)")
+    .style("padding", "8px 12px")
+    .style("border-radius", "4px")
+    .style("font-size", "12px")
+    .style("line-height", "1.4")
+    .style("z-index", 1000)
+    .style("opacity", 0);
 
-  const svg = holder.append("svg").attr("viewBox", `0 0 ${W} ${H}`);
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-  const tip = d3.select("body").append("div").attr("class", "tooltip");
+  function calculateAggregates(eligTracts) {
+    cities.forEach(c => {
+      cityData[c.key] = {
+        gent: { n: 0, pop00: 0, pop17: 0, shares: {} },
+        notGent: { n: 0, pop00: 0, pop17: 0, shares: {} }
+      };
 
-  const x = d3.scalePoint().domain(axesDef.map(a => a.key)).range([0, innerW]).padding(0.15);
+      [true, false].forEach(isGent => {
+        const target = isGent ? cityData[c.key].gent : cityData[c.key].notGent;
+        const sub = eligTracts.filter(d => d.city === c.key && d.gentrified === isGent);
+        target.n = sub.length;
+        target.pop00 = d3.sum(sub, d => +d.total_population_00 || 0);
+        target.pop17 = d3.sum(sub, d => +d.total_population_17 || 0);
 
-  // one shared scale for every axis
-  const yLevel = d3.scaleLinear().domain([0, 100]).range([innerH, 0]);
-  let yChg = d3.scaleLinear().domain(chgDomain).range([innerH, 0]);
-  const yNow = () => mode === "chg" ? yChg : yLevel;
-
-  const lineGen = d3.line();
-  const pts = (r, m) => axesDef.map(a => [x(a.key), (m === "chg" ? yChg : yLevel)(vals[r.key][a.key][m])]);
-
-  const gridG = g.append("g").attr("class", "wh-grid");
-  const yAxisG = g.append("g").attr("class", "wh-yaxis");
-  const yLabel = g.append("text").attr("class", "pc-sublabel")
-    .attr("transform", "rotate(-90)").attr("x", -innerH / 2).attr("y", -62).attr("text-anchor", "middle");
-  const axisLinesG = g.append("g");
-  const ghostG = g.append("g");
-  const linesG = g.append("g");
-  const dotsG = g.append("g");
-
-  function drawGridAndAxis(dur) {
-    const sc = yNow();
-    const ticks = mode === "chg" ? sc.ticks(8) : d3.range(0, 101, 10);
-
-    gridG.selectAll("line").data(ticks, d => mode + d).join(
-      enter => enter.append("line").attr("x1", -6).attr("x2", innerW)
-        .attr("y1", d => sc(d)).attr("y2", d => sc(d)).attr("opacity", 0),
-      update => update,
-      exit => exit.remove()
-    ).transition().duration(dur)
-      .attr("y1", d => sc(d)).attr("y2", d => sc(d))
-      .attr("opacity", 1)
-      .attr("stroke", d => d === 0 && mode === "chg" ? "#888" : "#ececec")
-      .attr("stroke-width", d => d === 0 && mode === "chg" ? 1.5 : 1);
-
-    yAxisG.transition().duration(dur)
-      .call(d3.axisLeft(sc).tickValues(ticks).tickSize(0).tickPadding(8)
-        .tickFormat(v => mode === "chg" ? (v > 0 ? "+" : "") + v + " pts" : v + "%"))
-      .attr("transform", "translate(-6,0)");
-    yAxisG.select(".domain").remove();
-
-    yLabel.text(mode === "chg" ? "Change in share of residents (percentage points)" : "Share of residents");
-  }
-
-  function render(animate) {
-    const dur = animate ? 800 : 0;
-    drawGridAndAxis(dur);
-
-    // plain vertical axis lines (the scale is shared, so no ticks on each one)
-    axisLinesG.selectAll("line").data(axesDef, a => a.key).join("line")
-      .attr("x1", a => x(a.key)).attr("x2", a => x(a.key))
-      .attr("y1", 0).attr("y2", innerH)
-      .attr("stroke", "#777");
-
-    // 2000 as a dashed ghost when looking at 2017
-    ghostG.selectAll("path").data(races.slice().reverse(), r => r.key).join("path")
-      .attr("fill", "none")
-      .attr("stroke", r => r.color)
-      .attr("stroke-width", 1.6)
-      .attr("stroke-dasharray", "4,3")
-      .attr("d", r => lineGen(pts(r, "00")))
-      .transition().duration(dur)
-      .attr("opacity", mode === "17" ? 0.55 : 0);
-
-    const ln = linesG.selectAll(".race-line").data(races.slice().reverse(), r => r.key);
-    ln.enter().append("path")
-        .attr("class", "race-line")
-        .attr("fill", "none")
-        .attr("stroke", r => r.color)
-        .attr("stroke-width", 3)
-        .attr("stroke-linejoin", "round")
-        .attr("d", r => lineGen(pts(r, mode)))
-        .on("mouseover", (e, r) => highlight(r.key))
-        .on("mousemove", (e, r) => showTip(e, r))
-        .on("mouseout", () => { highlight(null); tip.style("opacity", 0); })
-      .merge(ln)
-        .transition().duration(dur)
-        .attr("d", r => lineGen(pts(r, mode)));
-
-    const dd = races.flatMap(r => axesDef.map(a => ({ r: r, a: a })));
-    const dts = dotsG.selectAll(".race-dot").data(dd, d => d.r.key + "|" + d.a.key);
-    dts.enter().append("circle")
-        .attr("class", "race-dot")
-        .attr("r", 4)
-        .attr("fill", d => d.r.color)
-        .attr("stroke", "white").attr("stroke-width", 1.2)
-        .attr("cx", d => x(d.a.key))
-        .attr("cy", d => yNow()(vals[d.r.key][d.a.key][mode]))
-        .on("mouseover", (e, d) => highlight(d.r.key))
-        .on("mousemove", (e, d) => showTip(e, d.r))
-        .on("mouseout", () => { highlight(null); tip.style("opacity", 0); })
-      .merge(dts)
-        .transition().duration(dur)
-        .attr("cy", d => yNow()(vals[d.r.key][d.a.key][mode]));
-
-    d3.selectAll("#whitehat-controls .seg button").classed("on", function () { return this.dataset.mode === mode; });
-  }
-
-  // ---- every tract as a faint dot at its real value ----
-  function dotY(dt, m) {
-    return (m === "chg" ? yChg : yLevel)(dt.v[m]) + margin.top;
-  }
-
-  function drawTractDots(yFn) {
-    ctx.clearRect(0, 0, W, H);
-    races.forEach(r => {
-      if (hoverKey && hoverKey !== r.key) return;
-      ctx.fillStyle = r.color;
-      d3.groups(dots.filter(dt => dt.race === r.key), dt => dt.axis).forEach(([ax, rows]) => {
-        const a = Math.max(0.05, Math.min(0.35, 3 / Math.sqrt(rows.length)));
-        ctx.globalAlpha = hoverKey ? Math.min(0.7, a * 2) : a;
-        rows.forEach(dt => {
-          ctx.beginPath();
-          ctx.arc(x(dt.axis) + margin.left + dt.jit, yFn(dt), 1.6, 0, Math.PI * 2);
-          ctx.fill();
+        races.forEach(r => {
+          const count00 = d3.sum(sub, d => +d[r.key + "_00"] || 0);
+          const count17 = d3.sum(sub, d => +d[r.key + "_17"] || 0);
+          const s00 = target.pop00 > 0 ? (100 * count00 / target.pop00) : 0;
+          const s17 = target.pop17 > 0 ? (100 * count17 / target.pop17) : 0;
+          target.shares[r.key] = {
+            s00: s00,
+            s17: s17,
+            chg: s17 - s00,
+            count00: count00,
+            count17: count17
+          };
         });
       });
     });
-    ctx.globalAlpha = 1;
-  }
 
-  function setMode(m) {
-    if (m === mode) return;
-    const old = mode;
-    mode = m;
-    render(true);
-    const tm = d3.timer(el => {
-      const k = d3.easeCubicInOut(Math.min(1, el / 800));
-      drawTractDots(dt => { const a = dotY(dt, old), b = dotY(dt, mode); return a + (b - a) * k; });
-      if (k >= 1) tm.stop();
+    tractDots = [];
+    eligTracts.forEach(d => {
+      races.forEach(r => {
+        const v00 = +d["pct_" + r.key + "_00"];
+        const v17 = +d["pct_" + r.key + "_17"];
+        if (!isNaN(v00) && !isNaN(v17)) {
+          tractDots.push({
+            city: d.city,
+            gentrified: d.gentrified,
+            race: r.key,
+            s00: v00,
+            s17: v17,
+            chg: v17 - v00,
+            name: d.name
+          });
+        }
+      });
     });
   }
 
-  function highlight(key) {
-    hoverKey = key;
-    drawTractDots(dt => dotY(dt, mode));
-    linesG.selectAll(".race-line").attr("opacity", r => key == null || r.key === key ? 1 : 0.12);
-    dotsG.selectAll(".race-dot").attr("opacity", d => key == null || d.r.key === key ? 1 : 0.12);
-    ghostG.selectAll("path").attr("visibility", r => key == null || r.key === key ? "visible" : "hidden");
-  }
+  function render() {
+    holder.selectAll("*").remove();
 
-  function fmt(v) { return (mode === "chg" && v > 0 ? "+" : "") + v.toFixed(1) + (mode === "chg" ? " pts" : "%"); }
+    const activeCities = selectedCity === "all" ? cities : cities.filter(c => c.key === selectedCity);
+    const isAll = selectedCity === "all";
 
-  function showTip(e, r) {
-    const rows = cities.map(c => {
-      const t = vals[r.key][c.key + "|true"][mode], f = vals[r.key][c.key + "|false"][mode];
-      return `<tr><td>${c.label}</td><td><b>${fmt(t)}</b></td><td>${fmt(f)}</td></tr>`;
-    }).join("");
-    const head = mode === "chg" ? "Change, 2000 → 2017" : (mode === "00" ? "2000" : "2017");
-    tip.html(`<b style="color:${r.color}">${r.label}</b> · ${head}
-              <table class="tip-tbl"><tr><th></th><th>Gentrified</th><th>Not</th></tr>${rows}</table>`)
-      .style("left", (e.pageX + 14) + "px")
-      .style("top", (e.pageY - 20) + "px")
-      .style("opacity", 1);
-  }
+    const width = 940;
+    const rowHeight = viewMode === "chg" ? 116 : 108;
+    const headerHeight = 110;
+    const footerHeight = 65;
+    const totalHeight = headerHeight + (activeCities.length * rowHeight) + footerHeight;
 
-  function drawHeaders() {
-    const grp = g.append("g");
-    cities.forEach((c, i) => {
-      const x1 = x(c.key + "|true"), x2 = x(c.key + "|false");
-      grp.append("text").attr("x", (x1 + x2) / 2).attr("y", -52)
-        .attr("text-anchor", "middle").attr("class", "city-name").text(c.label);
-      grp.append("path").attr("d", `M${x1},-40 v-5 H${x2} v5`).attr("fill", "none").attr("stroke", "#aaa");
-      if (i > 0) {
-        const xm = (x1 + x(cities[i - 1].key + "|false")) / 2;
-        grp.append("line").attr("x1", xm).attr("x2", xm).attr("y1", -64).attr("y2", innerH).attr("stroke", "#f0f0f0");
+    const svg = holder.append("svg")
+      .attr("viewBox", `0 0 ${width} ${totalHeight}`)
+      .attr("width", "100%")
+      .style("display", "block")
+      .style("font-family", "'Helvetica Neue', Helvetica, Arial, sans-serif");
+
+    // Header Title and Subtitle
+    const titleG = svg.append("g").attr("transform", "translate(24, 28)");
+    titleG.append("text")
+      .attr("x", 0).attr("y", 0)
+      .attr("font-size", "19px")
+      .attr("font-weight", "700")
+      .attr("fill", "#1a1a1a")
+      .text(viewMode === "chg"
+        ? "Shift in Neighborhood Racial Composition (2000 to 2017)"
+        : (viewMode === "17" ? "Neighborhood Racial Composition in 2017" : "Neighborhood Racial Composition in 2000"));
+
+    titleG.append("text")
+      .attr("x", 0).attr("y", 22)
+      .attr("font-size", "13px")
+      .attr("fill", "#555")
+      .text(viewMode === "chg"
+        ? "Comparing lower-income neighborhoods that gentrified vs. similar eligible neighborhoods that did not. Values in percentage points."
+        : "Comparing population-weighted racial shares (0% to 100%) between gentrified and non-gentrified neighborhoods.");
+
+    // Legend
+    const legendG = titleG.append("g").attr("transform", "translate(0, 46)");
+
+    // Bar style legend
+    legendG.append("rect").attr("x", 0).attr("y", -8).attr("width", 12).attr("height", 10).attr("fill", "#334155").attr("rx", 2);
+    legendG.append("text").attr("x", 16).attr("y", 1).attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#1e293b").text("Gentrified (Solid)");
+
+    legendG.append("rect").attr("x", 145).attr("y", -8).attr("width", 12).attr("height", 10)
+      .attr("fill", "#f1f5f9").attr("stroke", "#94a3b8").attr("stroke-width", 1.2).attr("rx", 2);
+    legendG.append("text").attr("x", 161).attr("y", 1).attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#475569").text("Did Not Gentrify (Light)");
+
+    // Divider
+    legendG.append("line").attr("x1", 335).attr("x2", 335).attr("y1", -9).attr("y2", 5).attr("stroke", "#cbd5e1");
+
+    // Racial group color dots
+    let rx = 355;
+    displayRaces.forEach(r => {
+      legendG.append("circle").attr("cx", rx).attr("cy", -2).attr("r", 5).attr("fill", r.color);
+      legendG.append("text").attr("x", rx + 9).attr("y", 2).attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#334155").text(r.label);
+      rx += 18 + r.label.length * 7.5;
+    });
+
+    const margin = { left: 155, right: 85 };
+    const chartW = width - margin.left - margin.right;
+
+    // Scales
+    let xScale;
+    if (viewMode === "chg") {
+      // Symmetrical domain for balanced left/right diverging bars
+      xScale = d3.scaleLinear().domain([-30, 30]).range([0, chartW]);
+    } else {
+      xScale = d3.scaleLinear().domain([0, 100]).range([0, chartW]);
+    }
+
+    // Gridlines, Zero Axis, and Top & Bottom Labels
+    const axisG = svg.append("g").attr("transform", `translate(${margin.left}, ${headerHeight - 12})`);
+    const ticks = viewMode === "chg" ? [-30, -20, -10, 0, 10, 20, 30] : [0, 20, 40, 60, 80, 100];
+    const gridBottom = activeCities.length * rowHeight;
+
+    // Bottom horizontal baseline rule
+    axisG.append("line")
+      .attr("x1", 0).attr("x2", chartW)
+      .attr("y1", gridBottom).attr("y2", gridBottom)
+      .attr("stroke", "#e2e8f0")
+      .attr("stroke-width", 1);
+
+    ticks.forEach(t => {
+      const tx = xScale(t);
+
+      // Vertical gridline
+      axisG.append("line")
+        .attr("x1", tx).attr("x2", tx)
+        .attr("y1", 0).attr("y2", gridBottom)
+        .attr("stroke", t === 0 ? "#444" : "#e6e6e6")
+        .attr("stroke-width", t === 0 ? 1.8 : 1)
+        .attr("stroke-dasharray", t === 0 ? "none" : (viewMode === "chg" ? "3,3" : "none"));
+
+      // Top label
+      axisG.append("text")
+        .attr("x", tx).attr("y", -8)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "11px")
+        .attr("font-weight", t === 0 ? "700" : "500")
+        .attr("fill", t === 0 ? "#111" : "#777")
+        .text(viewMode === "chg" ? (t > 0 ? `+${t} pts` : (t === 0 ? "0 (No change)" : `${t} pts`)) : `${t}%`);
+
+      // Bottom label
+      axisG.append("text")
+        .attr("x", tx).attr("y", gridBottom + 16)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "11px")
+        .attr("font-weight", t === 0 ? "700" : "500")
+        .attr("fill", t === 0 ? "#111" : "#777")
+        .text(viewMode === "chg" ? (t > 0 ? `+${t} pts` : (t === 0 ? "0" : `${t} pts`)) : `${t}%`);
+    });
+
+    // Draw City Sections
+    activeCities.forEach((cityObj, cIdx) => {
+      const cG = svg.append("g")
+        .attr("transform", `translate(0, ${headerHeight + cIdx * rowHeight})`);
+
+      const gData = cityData[cityObj.key].gent;
+      const ngData = cityData[cityObj.key].notGent;
+
+      // Subtle row background separator
+      if (cIdx > 0) {
+        cG.append("line")
+          .attr("x1", 16).attr("x2", width - 16)
+          .attr("y1", 0).attr("y2", 0)
+          .attr("stroke", "#e9ecef")
+          .attr("stroke-width", 1);
       }
+
+      // City Label & Clean Metadata Card
+      const labelG = cG.append("g").attr("transform", `translate(16, 14)`);
+
+      // Soft container card for the city
+      labelG.append("rect")
+        .attr("x", 0).attr("y", 0)
+        .attr("width", 126).attr("height", rowHeight - 24)
+        .attr("fill", "#f8fafc")
+        .attr("stroke", "#e2e8f0")
+        .attr("stroke-width", 1)
+        .attr("rx", 6);
+
+      // City title
+      labelG.append("text")
+        .attr("x", 12).attr("y", 22)
+        .attr("font-size", "13.5px")
+        .attr("font-weight", "700")
+        .attr("fill", "#0f172a")
+        .text(cityObj.label);
+
+      // Gentrified status row with indicator icon
+      const gRow = labelG.append("g").attr("transform", "translate(12, 44)");
+      gRow.append("rect")
+        .attr("x", 0).attr("y", -8)
+        .attr("width", 8).attr("height", 8)
+        .attr("fill", "#334155")
+        .attr("rx", 1.5);
+      gRow.append("text")
+        .attr("x", 13).attr("y", 0)
+        .attr("font-size", "11px")
+        .attr("font-weight", "600")
+        .attr("fill", "#334155")
+        .text(`Gentrified: ${gData.n}`);
+
+      // Not Gentrified status row with indicator icon
+      const ngRow = labelG.append("g").attr("transform", "translate(12, 64)");
+      ngRow.append("rect")
+        .attr("x", 0).attr("y", -8)
+        .attr("width", 8).attr("height", 8)
+        .attr("fill", "#f1f5f9")
+        .attr("stroke", "#94a3b8")
+        .attr("stroke-width", 1.2)
+        .attr("rx", 1.5);
+      ngRow.append("text")
+        .attr("x", 13).attr("y", 0)
+        .attr("font-size", "11px")
+        .attr("font-weight", "500")
+        .attr("fill", "#64748b")
+        .text(`Did Not: ${ngData.n}`);
+
+      // Plot bars for each race
+      const barsG = cG.append("g").attr("transform", `translate(${margin.left}, 12)`);
+      const numRaces = displayRaces.length;
+      const raceGroupHeight = (rowHeight - 20) / numRaces;
+      const barH = 8;
+      const barSpacing = 2;
+
+      displayRaces.forEach((r, rIdx) => {
+        const ry = rIdx * raceGroupHeight;
+        const gVal = viewMode === "chg" ? gData.shares[r.key].chg : (viewMode === "17" ? gData.shares[r.key].s17 : gData.shares[r.key].s00);
+        const ngVal = viewMode === "chg" ? ngData.shares[r.key].chg : (viewMode === "17" ? ngData.shares[r.key].s17 : ngData.shares[r.key].s00);
+
+        // Helper function for bar coordinates
+        const getBarCoords = (val) => {
+          if (viewMode === "chg") {
+            const x0 = xScale(Math.min(0, val));
+            const w = Math.abs(xScale(val) - xScale(0));
+            return { x: x0, w: Math.max(1.5, w) };
+          } else {
+            return { x: xScale(0), w: Math.max(1.5, xScale(val)) };
+          }
+        };
+
+        // 1. Gentrified Bar (Top)
+        const gCoords = getBarCoords(gVal);
+        const gBar = barsG.append("rect")
+          .attr("x", gCoords.x)
+          .attr("y", ry)
+          .attr("width", gCoords.w)
+          .attr("height", barH)
+          .attr("fill", r.color)
+          .attr("rx", 2)
+          .style("cursor", "pointer")
+          .style("transition", "opacity 0.2s");
+
+        // 2. Non-Gentrified Bar (Bottom)
+        const ngCoords = getBarCoords(ngVal);
+        const ngBar = barsG.append("rect")
+          .attr("x", ngCoords.x)
+          .attr("y", ry + barH + barSpacing)
+          .attr("width", ngCoords.w)
+          .attr("height", barH)
+          .attr("fill", r.color)
+          .attr("opacity", 0.35)
+          .attr("stroke", r.color)
+          .attr("stroke-width", 1)
+          .attr("rx", 2)
+          .style("cursor", "pointer")
+          .style("transition", "opacity 0.2s");
+
+        // Value text labels for Gentrified (always display exact value)
+        const gTextX = viewMode === "chg"
+          ? (gVal >= 0 ? xScale(gVal) + 5 : xScale(gVal) - 5)
+          : xScale(gVal) + 5;
+        const gAnchor = viewMode === "chg" ? (gVal >= 0 ? "start" : "end") : "start";
+
+        barsG.append("text")
+          .attr("x", gTextX)
+          .attr("y", ry + barH - 1)
+          .attr("text-anchor", gAnchor)
+          .attr("font-size", "10px")
+          .attr("font-weight", "700")
+          .attr("fill", "#1e293b")
+          .text(viewMode === "chg" ? (gVal > 0 ? `+${gVal.toFixed(1)}` : `${gVal.toFixed(1)}`) : `${gVal.toFixed(1)}%`);
+
+        // Value text labels for Not Gentrified (always display exact value)
+        const ngTextX = viewMode === "chg"
+          ? (ngVal >= 0 ? xScale(ngVal) + 5 : xScale(ngVal) - 5)
+          : xScale(ngVal) + 5;
+        const ngAnchor = viewMode === "chg" ? (ngVal >= 0 ? "start" : "end") : "start";
+
+        barsG.append("text")
+          .attr("x", ngTextX)
+          .attr("y", ry + barH * 2 + barSpacing - 1)
+          .attr("text-anchor", ngAnchor)
+          .attr("font-size", "10px")
+          .attr("font-weight", "500")
+          .attr("fill", "#64748b")
+          .text(viewMode === "chg" ? (ngVal > 0 ? `+${ngVal.toFixed(1)}` : `${ngVal.toFixed(1)}`) : `${ngVal.toFixed(1)}%`);
+
+        // Interactive Tooltip handlers
+        const attachTooltip = (el, isGentrified) => {
+          el.on("mousemove", (event) => {
+            const dataObj = isGentrified ? gData : ngData;
+            const statusLabel = isGentrified ? "Gentrified Neighborhoods" : "Eligible, Did Not Gentrify";
+            const stats = dataObj.shares[r.key];
+            const chgStr = stats.chg > 0 ? `+${stats.chg.toFixed(1)} pts` : `${stats.chg.toFixed(1)} pts`;
+
+            tip.html(`
+              <div style="font-weight:700; color:${r.color}; font-size:13px; margin-bottom:4px;">
+                ${cityObj.label} · ${r.label}
+              </div>
+              <div style="color:#333; margin-bottom:6px;">
+                <b>${statusLabel}</b> (n = ${dataObj.n} neighborhoods)
+              </div>
+              <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+                <tr><td style="color:#666; padding-right:12px;">2000 Share:</td><td><b>${stats.s00.toFixed(1)}%</b> (${d3.format(",")(Math.round(stats.count00))} residents)</td></tr>
+                <tr><td style="color:#666; padding-right:12px;">2017 Share:</td><td><b>${stats.s17.toFixed(1)}%</b> (${d3.format(",")(Math.round(stats.count17))} residents)</td></tr>
+                <tr style="border-top:1px solid #ddd;"><td style="color:#111; padding-top:3px;"><b>Net Change:</b></td><td style="padding-top:3px; font-weight:700; color:${stats.chg < 0 ? '#c8453b' : '#2b6cb0'}">${chgStr}</td></tr>
+              </table>
+            `)
+              .style("left", (event.pageX + 14) + "px")
+              .style("top", (event.pageY - 28) + "px")
+              .style("opacity", 1);
+
+            d3.select(event.currentTarget).attr("stroke", "#111").attr("stroke-width", 1.5);
+          })
+          .on("mouseout", (event) => {
+            tip.style("opacity", 0);
+            d3.select(event.currentTarget).attr("stroke", isGentrified ? "none" : r.color).attr("stroke-width", isGentrified ? 0 : 1);
+          });
+        };
+
+        attachTooltip(gBar, true);
+        attachTooltip(ngBar, false);
+      });
     });
-    axesDef.forEach(a => {
-      const t = grp.append("text").attr("x", x(a.key)).attr("text-anchor", "middle").attr("class", "pc-sublabel");
-      t.append("tspan").attr("x", x(a.key)).attr("y", -22).text(a.label);
-      t.append("tspan").attr("x", x(a.key)).attr("y", -9).attr("class", "n-label").text("n=" + nByAxis[a.key]);
-    });
-    grp.append("text").attr("x", -12).attr("y", -22).attr("text-anchor", "end")
-      .attr("class", "pc-sublabel").style("font-weight", "600").text("Gentrified:");
+
+    // Footnote
+    const footG = svg.append("g").attr("transform", `translate(24, ${totalHeight - 20})`);
+    footG.append("text")
+      .attr("x", 0).attr("y", 0)
+      .attr("font-size", "11px")
+      .attr("fill", "#777")
+      .text("Source: BuzzFeed News Census analysis (2000 Census & 2013–2017 ACS). Averages are population-weighted across 882 eligible lower-income neighborhoods.");
   }
 
-  // ---- titles / legend / notes ----
-  svg.append("text").attr("x", 20).attr("y", 30).attr("class", "pc-headline")
-    .text("How Neighborhood Racial Makeup Changed, 2000–2017");
-  svg.append("text").attr("x", 20).attr("y", 54).attr("class", "pc-sub")
-    .text("Lower-income neighborhoods that gentrified vs. similar ones that didn't. In all five cities, the Black share");
-  svg.append("text").attr("x", 20).attr("y", 72).attr("class", "pc-sub")
-    .text("fell more in gentrified neighborhoods, while the White share rose.");
-
-  const leg = svg.append("g").attr("transform", "translate(20, 98)");
-  let lx = 0;
-  races.forEach(r => {
-    leg.append("line").attr("x1", lx).attr("x2", lx + 22).attr("y1", 0).attr("y2", 0)
-      .attr("stroke", r.color).attr("stroke-width", 3);
-    leg.append("text").attr("x", lx + 28).attr("y", 4).attr("class", "pc-leg").text(r.label);
-    lx += 40 + r.label.length * 6.6;
-  });
-  leg.append("line").attr("x1", lx).attr("x2", lx + 22).attr("y1", 0).attr("y2", 0)
-    .attr("stroke", "#777").attr("stroke-width", 1.6).attr("stroke-dasharray", "4,3");
-  leg.append("text").attr("x", lx + 28).attr("y", 4).attr("class", "pc-leg").text("2000 (in 2017 view)");
-
-  svg.append("text").attr("x", 20).attr("y", H - 30).attr("class", "pc-source")
-    .text("Lines = population-weighted average share. Dots = individual neighborhoods. Hispanic/Latino can be of any race, so shares can add to more than 100%.");
-  svg.append("text").attr("x", 20).attr("y", H - 14).attr("class", "pc-source")
-    .text("Source: BuzzFeed News analysis of U.S. Census data (2000; ACS 2013–2017). 882 census tracts eligible to gentrify in 2000 (289 gentrified, 593 did not).");
-
-  // ---- load ----
+  // Load and initialize
   tractsPromise.then(data => {
     const elig = data.filter(d => d.eligible_for_gentrification &&
       races.every(r => ["00", "17"].every(y => d["pct_" + r.key + "_" + y] !== "" && !isNaN(+d["pct_" + r.key + "_" + y]))));
 
-    axesDef.forEach(a => {
-      nByAxis[a.key] = elig.filter(d => d.city === a.cityKey && d.gentrified === a.gent).length;
+    calculateAggregates(elig);
+    render();
+
+    // Event listeners for metric toggle
+    d3.selectAll("#wh-metric-seg button").on("click", function () {
+      d3.selectAll("#wh-metric-seg button").classed("on", false);
+      d3.select(this).classed("on", true);
+      viewMode = this.dataset.mode;
+      render();
     });
 
-    // population-weighted: total people of that race / total people
-    races.forEach(r => {
-      vals[r.key] = {};
-      axesDef.forEach(a => {
-        const sub = elig.filter(d => d.city === a.cityKey && d.gentrified === a.gent);
-        const share = y => 100 * d3.sum(sub, d => +d[r.key + "_" + y] || 0) / d3.sum(sub, d => +d["total_population_" + y] || 0);
-        const v00 = share("00"), v17 = share("17");
-        vals[r.key][a.key] = { "00": v00, "17": v17, "chg": v17 - v00 };
-      });
+    // Event listeners for city filter
+    d3.selectAll("#wh-city-seg button").on("click", function () {
+      d3.selectAll("#wh-city-seg button").classed("on", false);
+      d3.select(this).classed("on", true);
+      selectedCity = this.dataset.city;
+      render();
     });
-
-    elig.forEach(d => {
-      const axis = d.city + "|" + d.gentrified;
-      races.forEach(r => {
-        const a = +d["pct_" + r.key + "_00"], b = +d["pct_" + r.key + "_17"];
-        dots.push({ axis: axis, race: r.key, jit: (Math.random() - 0.5) * 14, v: { "00": a, "17": b, "chg": b - a } });
-      });
-    });
-
-    // change scale covers every single tract, so nothing gets cut off
-    chgDomain = d3.extent(dots, dt => dt.v.chg);
-    yChg = d3.scaleLinear().domain(chgDomain).nice().range([innerH, 0]);
-
-    console.log("white hat: eligible tracts", elig.length, "black D.C. gentrified", vals.black_alone["Washington|true"]);
-
-    drawHeaders();
-    render(false);
-    drawTractDots(dt => dotY(dt, mode));
-
-    d3.selectAll("#whitehat-controls .seg button").on("click", function () { setMode(this.dataset.mode); });
   });
 
 })();
