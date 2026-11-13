@@ -12,7 +12,7 @@
     <div class="container">
         <h1>Assignment 2: White Hat / Black Hat</h1>
         <h3>Gentrification and demographic change in five U.S. cities, 2000 to 2017</h3>
-        <p class="team">Kiran Manoj, Mihail Gjoni, Tong Zhan</p>
+        <p class="team"> Mihail Gjoni, Tong Zhan</p>
 
         <nav>
             <a href="#whitehat">White Hat</a> |
@@ -35,10 +35,50 @@
         <!-- ===== BLACK HAT ===== -->
         <section id="blackhat">
             <h2>Black Hat</h2>
+            <div id="blackhat-controls"></div>
             <div id="blackhat-chart" class="chart"></div>
             <div class="writeup">
                 <h4>Write-up</h4>
-                <p>TODO (Mihail): each trick we used and how it changes what people take away. 200-500 words.</p>
+                <p>
+                    This is a parallel coordinates chart where each line is one racial group (Black, White,
+                    Hispanic/Latino, Asian, Native American and Pacific Islander). Each city (New York, D.C., Baltimore,
+                    Atlanta and Oakland) gets two axes: Gentrified True and Gentrified False. Where a line crosses an
+                    axis shows that group's average share of residents in those neighborhoods. Behind the averages, every
+                    one of the 2,750 neighborhoods draws a faint line per group, from its own value across to the
+                    other group's average in its city. A switch flips between
+                    2000 and 2017 and animates the lines, and hovering a line shows its exact values. On purpose, the
+                    chart says the makeup of these neighborhoods held steady. It didn't. In D.C.'s gentrified
+                    neighborhoods, the average Black share fell from 84.2% to 57.4%, and in Atlanta's from 86.7% to 63.1%.
+                </p>
+                <p>
+                    <b>Encoding (the main trick):</b> each axis has its own scale, running from 0 to the largest value on
+                    that axis in the year shown, so whichever group is largest is always pinned near the top. When
+                    you flip to 2017, the D.C. True axis shrinks from 90% to 60%, so the Black line actually moves <i>up</i>,
+                    from 94% to 96% of the axis, even though the share dropped almost 27 points. In Atlanta it also rises,
+                    from 96% to 97%. Readers compare the shape of the lines, not the tick labels, and the shape
+                    barely changes. Because the axes don't share a scale, the True and False axes in the same city
+                    can't be compared by eye either.
+                </p>
+                <p>
+                    <b>Data (who's included):</b> each False axis averages every other neighborhood in the city,
+                    including wealthy ones that could never gentrify, instead of the low-income neighborhoods that were
+                    eligible but didn't. In D.C. those 44 eligible neighborhoods were still 87.1% Black in 2017, but
+                    the chart's False group has only 45.8%, so gentrified neighborhoods seem to just be moving toward
+                    "normal." The averages also count each neighborhood equally instead of weighting by population, and the
+                    source line just says "2,750 census tracts," which sounds complete.
+                </p>
+                <p>
+                    <b>Title and labels:</b> "Neighborhood Racial Makeup Has Held Steady Since 2000" tells readers
+                    what to see before they look, and "Flip between years to see for yourself" makes the switch feel
+                    like proof. Readers flip it, see the same shape, and trust the claim more because they "checked" it.
+                </p>
+                <p>
+                    Every number is real, the hover box shows them, and the faint lines make it look like nothing is
+                    hidden. But the faint lines use the same stretched scales, and any neighborhood above the top of an axis is simply cut
+                    off, so they hide the change just as well.
+                    To see the real story, put every axis on the same 0–100% scale and compare gentrified neighborhoods
+                    only to other eligible ones, like our white hat chart does.
+                </p>
             </div>
         </section>
 
@@ -49,7 +89,12 @@
                     BuzzFeed News, gentrification and demographic analysis:
                     <a href="https://github.com/BuzzFeedNews/2020-02-gentrification" target="_blank">github.com/BuzzFeedNews/2020-02-gentrification</a>
                 </li>
-                <li>TODO: the BuzzFeed article + any chart examples we borrow from</li>
+                <li>
+                    Parallel coordinates adapted from Kai Chang (syntagmatic), "Exoplanets II":
+                    <a href="https://gist.github.com/syntagmatic/482706e0638c67836d94b20f0cb37122" target="_blank">gist.github.com/syntagmatic/482706e0638c67836d94b20f0cb37122</a>
+                    (ported from D3 v4 to v7)
+                </li>
+                <li>TODO: the BuzzFeed article</li>
             </ul>
         </section>
 
@@ -67,6 +112,6 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="js/data.js"></script>
     <script src="js/whitehat.js"></script>
-    <script src="js/blackhat.js"></script>
+    <script src="js/blackhat_parallel.js"></script>
 </body>
 </html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2 - Data Exploration</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .chart { min-height: 0; padding: 6px 0; }
+        .note { color: #666; font-size: 13px; margin-top: -10px; }
+        .axis-label { font-size: 12px; fill: #444; }
+        .legend text { font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Data exploration (not graded)</h1>
+        <p>Scratch page for looking at the BuzzFeed gentrification data before we design the real charts.
+           Only tracts that were <b>eligible</b> to gentrify in 2000 (low income + low home value) are used, so
+           "gentrified" vs "not gentrified" compares similar neighborhoods.</p>
+
+        <section>
+            <h2>1. Change in Black population share, 2000 to 2017</h2>
+            <div id="ex1" class="chart"></div>
+            <p class="note">Average percentage-point change per tract. Bars below 0 = Black share went down.</p>
+        </section>
+
+        <section>
+            <h2>2. Who moved in? Change in each group's share in gentrified tracts</h2>
+            <div id="ex2" class="chart"></div>
+            <p class="note">Each dot is the average percentage-point change for that group, gentrified tracts only.</p>
+        </section>
+
+        <section>
+            <h2>3. Home value growth vs change in Black share (every eligible tract)</h2>
+            <div id="ex3" class="chart"></div>
+            <p class="note">One dot per tract. Home value change is inflation-adjusted (BuzzFeed's home_pct_change). A few extreme tracts are cut off.</p>
+        </section>
+    </div>
+
+    <div class="tooltip" id="tip"></div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/explore.js"></script>
+</body>
+</html>
