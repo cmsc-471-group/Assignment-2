@@ -13,6 +13,7 @@
         <h1>Assignment 2: White Hat / Black Hat</h1>
         <h3>Gentrification and demographic change in five U.S. cities, 2000 to 2017</h3>
         <p class="team"> Mihail Gjoni, Tong Zhan</p>
+        <p class="data-question"><b>Data question:</b> In which of five U.S. cities did gentrification change the racial makeup of neighborhoods the most, from 2000 to 2017?</p>
 
         <nav>
             <a href="#whitehat">White Hat</a> |
@@ -25,10 +26,60 @@
         <!-- ===== WHITE HAT ===== -->
         <section id="whitehat">
             <h2>White Hat</h2>
+            <div id="whitehat-controls"></div>
             <div id="whitehat-chart" class="chart"></div>
+            <div class="how-to-read">
+                <h4>How to read this chart</h4>
+                <ul>
+                    <li>Each <b>bold line</b> is one race. Its height on an axis is that race's share of residents (weighted by population).</li>
+                    <li>Each city has two axes: <b>True</b> = lower-income neighborhoods that gentrified, <b>False</b> = similar ones that didn't. <i>n</i> is the number of neighborhoods.</li>
+                    <li>Every axis uses the <b>same scale</b>, so you can compare heights anywhere on the chart.</li>
+                    <li><b>Faint dots</b> are single neighborhoods at their real values.</li>
+                    <li>Pick <b>2000</b>, <b>2017</b> (2000 shown dashed), or <b>Change</b> to see the gain or loss in percentage points. Hover a line for exact numbers.</li>
+                </ul>
+            </div>
             <div class="writeup">
                 <h4>Write-up</h4>
-                <p>TODO (Tong): dataset, design choices, how it stays clear and accurate. 200-500 words.</p>
+                <p>
+                    <b>Question and data:</b> in which of five U.S. cities did gentrification change the racial makeup of
+                    neighborhoods the most, from 2000 to 2017? To answer it fairly, each city's gentrified neighborhoods are
+                    compared with similar ones that didn't gentrify. We use BuzzFeed News's census tract data
+                    for New York, D.C., Baltimore, Atlanta and Oakland, which compares the 2000 Census with the 2013–2017
+                    American Community Survey. Following Governing magazine's method, BuzzFeed calls a tract <i>eligible</i> if
+                    in 2000 it had at least 500 residents and its median income and home value were in the bottom 40% of
+                    its metro area. It's <i>gentrified</i> if it was eligible and then ranked in the top third of its metro
+                    for growth in both bachelor's degrees and inflation-adjusted home value.
+                </p>
+                <p>
+                    <b>Data transformations:</b> we keep only the 882 eligible tracts (289 gentrified, 593 not), so every
+                    True/False pair compares neighborhoods that started out alike. Averages are weighted by population
+                    (total people of a race divided by total people), so a tract of 8,000 people counts more than a
+                    tract of 800. We also calculate the change for each group, 2017 share minus 2000 share, in
+                    percentage points.
+                </p>
+                <p>
+                    <b>Marks and encodings:</b> each race is one colored line, and each city gets a True and a False
+                    axis. Every axis shares one 0–100% scale with light gridlines, so a height means the same thing
+                    everywhere on the chart. Bold lines are the averages, and faint dots are single neighborhoods
+                    at their real values, so readers can see the spread behind each average. The 2017 view keeps
+                    2000 as a dashed line, and the Change view puts 0 in the middle, so gains and losses can be read
+                    directly instead of compared across two pictures. Hovering shows the exact numbers for every city.
+                    Colors stay the same in every view, and nothing is cut off.
+                </p>
+                <p>
+                    <b>Titles and labels:</b> the title is neutral, and the subtitle states the finding: in all five cities,
+                    the Black share fell more in gentrified neighborhoods than in similar ones that didn't, while the
+                    White share rose. In D.C. it fell about 25 points (82.2% to 56.8%) versus 4 points; in Atlanta,
+                    23 points versus 1. Every axis shows its sample size (n), and the notes say the averages are
+                    population-weighted and that Hispanic/Latino can be of any race, so shares can add to more than 100%.
+                </p>
+                <p>
+                    <b>Limitations and bias:</b> the 2017 numbers are survey estimates with margins of error, which are
+                    larger for small tracts and small groups, and some city/status groups are small (Atlanta True has 23
+                    tracts). "Gentrified" follows BuzzFeed's definition, and other definitions would sort some tracts
+                    differently. Finally, the chart shows who lives in a neighborhood, not who moved out, so it doesn't
+                    measure displacement directly.
+                </p>
             </div>
         </section>
 
@@ -37,6 +88,15 @@
             <h2>Black Hat</h2>
             <div id="blackhat-controls"></div>
             <div id="blackhat-chart" class="chart"></div>
+            <div class="how-to-read">
+                <h4>How to read this chart</h4>
+                <ul>
+                    <li>Each <b>bold line</b> is one race. Where it crosses an axis is that race's average share of residents.</li>
+                    <li>Each city has two axes: <b>True</b> = neighborhoods that gentrified, <b>False</b> = the city's other neighborhoods.</li>
+                    <li>Each <b>faint line</b> is one neighborhood. It starts at that neighborhood's real share and runs to the other group's average.</li>
+                    <li>Flip the switch to compare 2000 and 2017, and hover a line for exact numbers.</li>
+                </ul>
+            </div>
             <div class="writeup">
                 <h4>Write-up</h4>
                 <p>
@@ -56,29 +116,36 @@
                     you flip to 2017, the D.C. True axis shrinks from 90% to 60%, so the Black line actually moves <i>up</i>,
                     from 94% to 96% of the axis, even though the share dropped almost 27 points. In Atlanta it also rises,
                     from 96% to 97%. Readers compare the shape of the lines, not the tick labels, and the shape
-                    barely changes. Because the axes don't share a scale, the True and False axes in the same city
-                    can't be compared by eye either.
+                    barely changes.
                 </p>
                 <p>
                     <b>Data (who's included):</b> each False axis averages every other neighborhood in the city,
                     including wealthy ones that could never gentrify, instead of the low-income neighborhoods that were
                     eligible but didn't. In D.C. those 44 eligible neighborhoods were still 87.1% Black in 2017, but
                     the chart's False group has only 45.8%, so gentrified neighborhoods seem to just be moving toward
-                    "normal." The averages also count each neighborhood equally instead of weighting by population, and the
-                    source line just says "2,750 census tracts," which sounds complete.
+                    "normal."
                 </p>
                 <p>
                     <b>Title and labels:</b> "Neighborhood Racial Makeup Has Held Steady Since 2000" tells readers
                     what to see before they look, and "Flip between years to see for yourself" makes the switch feel
-                    like proof. Readers flip it, see the same shape, and trust the claim more because they "checked" it.
+                    like proof.
                 </p>
-                <p>
-                    Every number is real, the hover box shows them, and the faint lines make it look like nothing is
-                    hidden. But the faint lines use the same stretched scales, and any neighborhood above the top of an axis is simply cut
-                    off, so they hide the change just as well.
-                    To see the real story, put every axis on the same 0–100% scale and compare gentrified neighborhoods
-                    only to other eligible ones, like our white hat chart does.
-                </p>
+                <h4>Why it's a black hat</h4>
+                <ul>
+                    <li><b>Separate scales:</b> each axis stretches to its own max, so the largest group stays near the top. In D.C. True, Black share fell 84.2% → 57.4%, but the line moves up.</li>
+                    <li><b>Wrong comparison:</b> "False" includes wealthy neighborhoods that could never gentrify, so gentrified ones look like they're just becoming "normal."</li>
+                    <li><b>Cut-off lines:</b> neighborhoods above an axis's top are chopped off, which hides the biggest changes.</li>
+                    <li><b>Fake evidence:</b> faint lines end at an average, not real data. They look thorough but add nothing.</li>
+                    <li><b>Slanted title:</b> "Held Steady" and "see for yourself" tell readers what to conclude.</li>
+                </ul>
+                <h4>What would make it a white hat</h4>
+                <ul>
+                    <li>Put every axis on the same 0–100% scale.</li>
+                    <li>Compare gentrified neighborhoods only to eligible ones that didn't gentrify.</li>
+                    <li>Show the change directly (2017 minus 2000) instead of making readers compare two pictures.</li>
+                    <li>Show every neighborhood with nothing cut off, and weight averages by population.</li>
+                    <li>Use a neutral title, like "How Neighborhood Racial Makeup Changed, 2000–2017."</li>
+                </ul>
             </div>
         </section>
 

@@ -75,3 +75,38 @@ section {
 .pc-holder .city-name { font-size: 13px; font-weight: 600; fill: #222; }
 .pc-holder .pc-axis.cat .tick text { font-size: 11px; font-weight: 500; fill: #555; }
 .pc-holder .pc-sublabel { font-size: 12px; fill: #444; }
+
+/* how to read box under the black hat chart */
+.how-to-read {
+    background: #f4f6f9;
+    border-left: 3px solid #9aa5b1;
+    padding: 8px 16px 4px;
+    margin: -8px 0 22px;
+    font-size: 14px;
+}
+.how-to-read h4 { margin: 4px 0 6px; }
+.how-to-read ul, .writeup ul { margin-top: 4px; padding-left: 20px; line-height: 1.5; }
+.writeup li { margin-bottom: 4px; }
+
+/* ---- white hat ---- */
+#whitehat-controls { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid #c7d3e0; border-radius: 6px; overflow: hidden; }
+.seg button {
+    border: 0; background: white; color: #2962a0; padding: 6px 12px;
+    font: inherit; font-weight: 600; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid #c7d3e0; }
+.seg button.on { background: #2962a0; color: white; }
+.wh-yaxis text { font-size: 11px; fill: #555; }
+.pc-holder .n-label { font-size: 10px; fill: #888; }
+.tip-tbl { border-collapse: collapse; margin-top: 4px; font-size: 12px; }
+.tip-tbl td, .tip-tbl th { padding: 1px 8px 1px 0; text-align: left; }
+.tip-tbl th { color: #777; font-weight: 500; }
+
+.data-question {
+    background: #eef3f9;
+    border-left: 4px solid #2962a0;
+    padding: 10px 14px;
+    font-size: 16px;
+    margin: 14px 0 6px;
+}
